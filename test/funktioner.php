@@ -1,5 +1,13 @@
 <?php
 
-function ingenRutt(string $param): string {
-    return "<p class'error'>Det finns ingen rutt med angivna parametrar ($param)</p>";
+declare (strict_types=1);
+
+function connectdb():PDO{
+    //koppla mot databasen
+    $dsn='mysql:dbname=tidsrapport;host=localhost';
+    $dbUser = 'root';
+    $dbPassword ="";
+    $db = new PDO($dsn, $dbUser, $dbPassword);
+    
+    return $db;
 }

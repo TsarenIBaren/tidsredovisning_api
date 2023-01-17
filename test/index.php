@@ -1,86 +1,47 @@
 <?php
-declare (strict_types=1);
 
-require_once '../src/routes.php';
-require_once '../src/Route.php';
-require_once '../src/Response.php';
-require_once '../src/RequestMethod.php';
-require_once './funktioner.php';
+require_once './src/routes.php';
+require_once './src/funktioner.php';
+require_once './src/Route.php';
+require_once './src/Response.php';
+require_once './src/RequestMethod.php';
 
 // Hämta begärd resurs
 $uri = filter_var($_SERVER['REQUEST_URI'], FILTER_UNSAFE_RAW);
-// Lagra undan aktuell mapp
-$dir = dirname($_SERVER['SCRIPT_NAME']);
+
+// Läs in eventuell POST-data
+if (count($_POST) > 0) {
+    $postData = $_POST;
+    $metod = RequestMethod::POST;
+} else {
+    $postData = [];
+    $metod = RequestMethod::GET;
+}
 
 // Hämta ruttinformation
-$route = getRoute($uri);
-
-switch (count($route->getParams())) {
-    case 0: // Inga parametrar - testa allt
-        require_once './testaAllt.php';
-        $html = testaAllaFunktioner();
+$route = getRoute($uri, $metod);
+// Hantera ruttinformationen
+switch ($route->getRoute()) {
+    case "/activity/":
+        require_once './src/activities.php';
+        $retur = activities($route, $postData);
         break;
-    case 1: // En parameter - testa en avdelning
-        switch ($route->getParams()[0]) {
-            case "activity":
-                require_once './testActivities.php';
-                $html = allaActivityTester();
-                break;
-            case "tasklist":
-                require_once './testTasks.php';
-                $html = allaTasklistTester();
-                break;
-            case "task":
-                require_once './testTasks.php';
-                $html = allaTaskTester();
-                break;
-            case "compilation":
-                require_once './testCompilation.php';
-                $html = allaCompilationTester();
-                break;
-            default: // Ingen träff - visa info
-                $html = ingenRutt($route->getParams()[0]);
-                break;
-        }
+    case "/tasklist/":
+        require_once './src/tasks.php';
+        $retur = tasklists($route);
         break;
-    case 2: // Två parametrar testa enskilda funktioner
-        switch ($route->getParams()[0]) {
-            case "activity":
-                require_once './testActivities.php';
-                $html = testActivityFunction($route->getParams()[1]);
-                break;
-            case "tasklist":
-                require_once './testTasks.php';
-                $html = testTaskFunction($route->getParams()[1]);
-                break;
-            case "task":
-                require_once './testTasks.php';
-                $html = testTaskFunction($route->getParams()[1]);
-                break;
-            case "compilation":
-                require_once './testCompilation.php';
-                $html = testCompilationFunction($route->getParams()[1]);
-                break;
-            default: // Ingen träff - visa info
-                $html = ingenRutt($route->getParams()[0]);
-                break;
-        }
+    case "/task/":
+        require_once './src/tasks.php';
+        $retur = tasks($route, $postData);
         break;
-    default: // Ingen träff - Visa info
-        $html = ingenRutt(implode("/", $route->getParams()));
+    case "/compilation/":
+        require_once './src/compilations.php';
+        $retur = compilations($route);
+        break;
+    default:
+        $retur = new Response("Okänt anrop", 400);
         break;
 }
 
-// Skriv ut en snygg htlm-sida som svar
-?>
-<!DOCTYPE html>
-<html>
-    <head>
-        <title>Tester för tidsredovisnings API:et</title>
-        <meta charset="UTF-8">
-        <link href="<?= $dir; ?>/index.css" rel="stylesheet" type="text/css"/>
-    </head>
-    <body>
-        <?= $html; ?>
-    </body>
-</html>
+// Skicka svar som JSON-data
+$retur->skickaJSON();
