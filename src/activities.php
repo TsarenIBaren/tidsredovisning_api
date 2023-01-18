@@ -1,7 +1,7 @@
 <?php
 
 declare (strict_types=1);
-require_once __DIR__ .  './funktioner.php';
+require_once __DIR__ .  '/funktioner.php';
 
 /**
  * Läs av rutt-information och anropa funktion baserat på angiven rutt
@@ -38,9 +38,9 @@ function activities(Route $route, array $postData): Response {
  * @return Response
  */
 function hamtaAlla(): Response {
-    //koppla mot databasen
+    //koppla mot databasen 
     $db=connectDb();
-
+    
     // hämta alla poster från tabellen
     $resultat=$db->query("SELECT id, kategori from kategorier");
 
@@ -63,9 +63,34 @@ function hamtaAlla(): Response {
  * @return Response
  */
 function hamtaEnskild(int $id): Response {
-    return new Response("Hämta aktivitet $id", 200);
-}
+    // Kontrollera indata
+    $kollatID= filter_var($id, FILTER_VALIDATE_INT);
+    if(!$kollatID || $kollatID < 1) {
+        $out= new stdClass();
+        $out->error=["Felaktig indata", "$id är inget heltal"];
+        return new Response($out,400 );
+    }
+    //Koppla databas och hämta post
+    $db= connectDb();
+    $stmt=$db ->prepare("SELECT id, kategori FROM kategorier where id=:id");
+    if ($stmt->execute(["id"=>$kollatID])) {
+        $out=new stdClass();
+        $out->error=["fel vid läsning från databasen", implode(",", $stmt->errorInfo())];
+    }
 
+    if($row=$stmt->fetch()) {
+        $out=new stdClass();
+        $out->id=$row["id"];
+        $out->activity=$row["kategori"];
+        return new Response($out);
+    } else {
+        $out=new stdClass();
+        $out->error=["Hittade ingen post med id=$kollatID"];
+        return new Response($out, 400);
+    }
+
+}
+    
 /**
  * Lagrar en ny aktivitet i databasen
  * @param string $aktivitet Aktivitet som ska sparas

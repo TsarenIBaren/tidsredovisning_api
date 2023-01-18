@@ -2,9 +2,9 @@
 
 declare (strict_types=1);
 
-require './testActivities.php';
-require './testCompilation.php';
-require './testTasks.php';
+require_once './testActivities.php';
+require_once './testCompilation.php';
+require_once './testTasks.php';
 
 /**
  * Testar alla funktioner som heter test_
