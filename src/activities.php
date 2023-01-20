@@ -17,7 +17,8 @@ function activities(Route $route, array $postData): Response {
         if (count($route->getParams()) === 1 && $route->getMethod() === RequestMethod::GET) {
             return hamtaEnskild((int) $route->getParams()[0]);
         }
-        if (count($route->getParams()) === 0 && $route->getMethod() === RequestMethod::POST) {
+        if (isset($postData["activity"]) && count($route->getParams()) === 0 &&
+                $route->getMethod() === RequestMethod::POST) {
             return sparaNy((string) $postData["activity"]);
         }
         if (count($route->getParams()) === 1 && $route->getMethod() === RequestMethod::PUT) {
@@ -97,7 +98,41 @@ function hamtaEnskild(int $id): Response {
  * @return Response
  */
 function sparaNy(string $aktivitet): Response {
-    return new Response("Sparar ny aktivitet:$aktivitet", 200);
+    //kontrollera indata
+    $kontrolleradAktivitet=filter_var($aktivitet, FILTER_SANITIZE_ENCODED);
+    $kontrolleradAktivitet=trim($kontrolleradAktivitet);
+    if($kontrolleradAktivitet=="") {
+        $out=new stdClass();
+        $out->error=["Fel vid spara", "activity kan inte vara tom"];
+        return new Response($out, 400);
+    }
+
+    try {
+
+    //koppla most databas
+    $db= connectDb();
+
+    //spara till databasen
+    $stmt=$db->prepare("INSERT INTO kategorier (kategori) VALUE (:kategori)");
+    $stmt->execute(["kategori"=>$kontrolleradAktivitet]);
+    $antalPoster=$stmt->rowCount();
+
+    //returnera svaret
+    if($antalPoster>0) {
+        $out=new stdClass();
+        $out->message=["Spara lyckades", "$antalPoster post(er) lades till"];
+        $out->id=$db->lastInsertId();
+        return new Response($out);
+    } else {
+        $out=new stdClass();
+        $out->error=["Något gick fel vid spara", implode(",", $db->errorInfo())];
+        return new Reponse($out, 400);
+    }
+    } catch (Exception $ex) {
+        $out=new stdClass();
+        $out->error = ["Något gick fel vid spara", $ex->getMessage()];
+        return new Response($out, 400);
+    }
 }
 
 /**
@@ -107,7 +142,44 @@ function sparaNy(string $aktivitet): Response {
  * @return Response
  */
 function uppdatera(int $id, string $aktivitet): Response {
-    return new Response("Uppdaterar aktivetet $id -> $aktivitet", 200);
+    //kontrollera indata
+    $kontrolleradAktivitet = filter_var($aktivitet, FILTER_SANITIZE_ENCODED);
+    $kontrolleradAktivitet = trim($kontrolleradAktivitet);
+    $kollatID = filter_var($id, FILTER_VALIDATE_INT);
+    if($kontrolleradAktivitet === "") {
+        $out = new stdClass();
+        $out->error = ["Fel vid spara indata", "activity kan inte vara tom"];
+        return new Response($out, 400);
+    }
+    try {
+
+    //koppla databas
+    $db=connectDb();
+
+    //uppdatera post
+    $stmt = $db->prepare("UPDATE kategorier"
+        .  " SET kategori=:aktivitet"
+        .  " WHERE id=:id");
+
+    $stmt->execute(["aktivitet" => $kontrolleradAktivitet, "id" => $kollatID]);
+    $antalPoster = $stmt->rowCount();
+
+    //returnera svar
+    $out = new stdClass();
+    if ($antalPoster > 0) {
+        $out->result = true;
+        $out->message = ["Uppdatera lyckades", "$antalPoster poster uppdaterades"];
+    } else {
+        $out->result = false;
+        $out->message = ["Uppdatera lyckades", "0 poster uppdaterades"];
+    }
+
+    return new Response($out, 200);
+} catch (Exception $ex) {
+    $out = new stdClass();
+    $out->error = ["Något gick fel vid Spara", $ex->getMessage()];
+    return new Response($out, 400);
+}
 }
 
 /**
