@@ -143,15 +143,22 @@ function sparaNy(string $aktivitet): Response {
  */
 function uppdatera(int $id, string $aktivitet): Response {
     //kontrollera indata
-    $kontrolleradAktivitet = filter_var($aktivitet, FILTER_SANITIZE_ENCODED);
-    $kontrolleradAktivitet = trim($kontrolleradAktivitet);
-    $kollatID = filter_var($id, FILTER_VALIDATE_INT);
+    $kontrolleradAktivitet = trim($aktivitet);
+    $kontrolleradAktivitet = filter_var($kontrolleradAktivitet, FILTER_SANITIZE_ENCODED);
+    // fix this 
     if($kontrolleradAktivitet === "") {
         $out = new stdClass();
         $out->error = ["Fel vid spara indata", "activity kan inte vara tom"];
         return new Response($out, 400);
     }
-    try {
+    $kollatID = filter_var($id, FILTER_VALIDATE_INT);
+    if(!$kollatID || $kollatID < 1) {
+        $out= new stdClass();
+        $out->error=["Felaktig indata", "$id är inget heltal"];
+        return new Response($out, 400);
+    }
+
+   try {
 
     //koppla databas
     $db=connectDb();
@@ -188,5 +195,40 @@ function uppdatera(int $id, string $aktivitet): Response {
  * @return Response
  */
 function radera(int $id): Response {
-    return new Response("Raderar aktivitet $id", 200);
+
+    // kontrollera id / indata
+    $kollatID = filter_var($id, FILTER_VALIDATE_INT);
+    if (!$kollatID || $kollatID < 1) {
+        $out = new stdClass();
+        $out->error = ["Felaktig indata", "$id är inget giltigt heltal"];
+        return new Response($out, 400);
+    }
+
+    try {
+    //koppla mot databas
+    $db = connectDb();
+
+    // skicka radera kommando
+    $stmt = $db->prepare("DELETE FROM kategorier"
+        . " Where id=:id");
+        $stmt ->execute (["id" => $kollatID]);
+        $antalPoster = $stmt->rowCount();
+
+    //kontrollera databas-svar och skapa utdata svar
+    $out=new stdClass();
+    if($antalPoster>0) {
+        $out->result=true;
+        $out->message=["Radera lyckades", "$antalPoster post(er) raderades"];
+    } else {
+        $out->result=false;
+        $out->message=["Radera misslyckades", "Inga poster raderades"];
+    }
+    
+    return new Response($out);
+
+    } catch (Exception $ex) {
+        $out=new stdClass();
+        $out->error = ["Något gick fel vid radera", $ex->getMessage()];
+        return new Response($out, 400);
+    }
 }
